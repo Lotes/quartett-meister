@@ -76,27 +76,33 @@ const INITIAL_PROJECT: QuartettProject = {
   })),
 };
 
-function valueToPoints(value: number, prop: PropertyDefinition, maxPoints: number): number {
+function valueToRawPoints(value: number, prop: PropertyDefinition, maxPoints: number): number {
+  let raw: number;
   if (prop.scaleType === 'linear') {
-    const points = ((value - prop.min) / (prop.max - prop.min)) * maxPoints;
-    return Math.max(0, Math.min(maxPoints, Math.round(points)));
+    raw = ((value - prop.min) / (prop.max - prop.min)) * maxPoints;
   } else {
     const min = prop.min || 0.1;
     const max = prop.max || 1;
-    if (value <= min) return 0;
-    if (value >= max) return maxPoints;
-    const points = (Math.log(value / min) / Math.log(max / min)) * maxPoints;
-    return Math.max(0, Math.min(maxPoints, Math.round(points)));
+    if (value <= min) raw = 0;
+    else if (value >= max) raw = maxPoints;
+    else raw = (Math.log(value / min) / Math.log(max / min)) * maxPoints;
   }
+  return Math.max(0, Math.min(maxPoints, Math.round(raw)));
+}
+
+function valueToPoints(value: number, prop: PropertyDefinition, maxPoints: number): number {
+  const raw = valueToRawPoints(value, prop, maxPoints);
+  return prop.winCondition === 'lower' ? maxPoints - raw : raw;
 }
 
 function pointsToValue(points: number, prop: PropertyDefinition, maxPoints: number): number {
+  const effectivePoints = prop.winCondition === 'lower' ? maxPoints - points : points;
   if (prop.scaleType === 'linear') {
-    return prop.min + (points / maxPoints) * (prop.max - prop.min);
+    return prop.min + (effectivePoints / maxPoints) * (prop.max - prop.min);
   } else {
     const min = prop.min || 0.1;
     const max = prop.max || 1;
-    return min * Math.pow(max / min, points / maxPoints);
+    return min * Math.pow(max / min, effectivePoints / maxPoints);
   }
 }
 
@@ -722,6 +728,12 @@ export default function QuartettEditor() {
                         const val = selectedCard.values[prop.id] ?? prop.min;
                         const points = valueToPoints(val, prop, project.settings.maxPoints);
                         const isInvalid = val < prop.min || val > prop.max;
+                        // displayPos maps min→left, max→right for both win conditions (raw, no win condition inversion)
+                        const displayPos = valueToRawPoints(val, prop, project.settings.maxPoints);
+                        const fillPct = (displayPos / project.settings.maxPoints) * 100;
+                        const sliderStyle = prop.winCondition === 'lower'
+                          ? { background: `linear-gradient(to right, #e5e7eb ${fillPct}%, #1a1a1a ${fillPct}%)` }
+                          : { background: `linear-gradient(to right, #1a1a1a ${fillPct}%, #e5e7eb ${fillPct}%)` };
 
                         return (
                           <div key={prop.id} className={cn(
@@ -748,15 +760,20 @@ export default function QuartettEditor() {
                                 min="0"
                                 max={project.settings.maxPoints}
                                 step="1"
-                                value={points}
+                                value={displayPos}
                                 onChange={(e) => {
-                                  const p = parseInt(e.target.value);
-                                  const v = pointsToValue(p, prop, project.settings.maxPoints);
+                                  const sliderPos = parseInt(e.target.value);
+                                  // sliderPos is raw (0=min, maxPoints=max); apply win condition to get actual points
+                                  const actualPoints = prop.winCondition === 'lower'
+                                    ? project.settings.maxPoints - sliderPos
+                                    : sliderPos;
+                                  const v = pointsToValue(actualPoints, prop, project.settings.maxPoints);
                                   updateCard(selectedCard.id, {
                                     values: { ...selectedCard.values, [prop.id]: v }
                                   });
                                 }}
-                                className="flex-1 accent-[#1a1a1a]"
+                                className="flex-1 prop-slider"
+                                style={sliderStyle}
                               />
                               <span className="text-xs font-bold w-6 text-right">{points}</span>
                             </div>
