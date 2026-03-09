@@ -14,8 +14,14 @@ export function exportPropertiesToCSV(properties: PropertyDefinition[]): string 
   return d3.csvFormat(data);
 }
 
+function parseDSV(text: string) {
+  const firstLine = text.split('\n')[0];
+  const delimiter = firstLine.includes(';') ? ';' : ',';
+  return d3.dsvFormat(delimiter).parse(text);
+}
+
 export function importPropertiesFromCSV(csvText: string): PropertyDefinition[] {
-  const parsed = d3.csvParse(csvText);
+  const parsed = parseDSV(csvText);
   return parsed.map((row: any) => ({
     id: row.id || `prop-${Date.now()}-${Math.random()}`,
     name: row.name || 'Unbenannt',
@@ -43,7 +49,7 @@ export function exportCardsToCSV(cards: Card[], properties: PropertyDefinition[]
 }
 
 export function importCardsFromCSV(csvText: string, properties: PropertyDefinition[]): Card[] {
-  const parsed = d3.csvParse(csvText);
+  const parsed = parseDSV(csvText);
   return parsed.map((row: any) => {
     const values: Record<string, number> = {};
     properties.forEach(p => {

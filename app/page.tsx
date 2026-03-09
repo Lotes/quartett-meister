@@ -779,6 +779,12 @@ export default function QuartettEditor() {
                 <header>
                   <h1 className="text-4xl font-serif italic mb-2">CSV Schema Dokumentation</h1>
                   <p className="text-[#1a1a1a]/60">Anleitung zum Importieren und Exportieren von Daten.</p>
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-800 flex gap-3">
+                    <Info size={18} className="shrink-0" />
+                    <p>
+                      <strong>Tipp:</strong> Es werden sowohl Kommas (<code>,</code>) als auch Semikolons (<code>;</code>) als Trennzeichen unterstützt. Dies ist besonders hilfreich, wenn du Daten aus Excel-Versionen mit unterschiedlichen Spracheinstellungen importierst.
+                    </p>
+                  </div>
                 </header>
 
                 <div className="grid grid-cols-1 gap-8">
