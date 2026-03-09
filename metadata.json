@@ -1,0 +1,5 @@
+{
+  "name": "Quartett Editor",
+  "description": "Ein Editor für Quartett-Kartenspiele mit Budget-System und Spinnennetz-Diagrammen.",
+  "requestFramePermissions": []
+}
