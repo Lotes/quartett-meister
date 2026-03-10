@@ -1,20 +1,66 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Quartett-Meister
 
-# Run and deploy your AI Studio app
+A web-based editor for creating and balancing [Quartett](https://en.wikipedia.org/wiki/Top_Trumps) (Top Trumps) card decks. Configure properties, assign budgets, visualize cards with radar charts, and export everything as CSV or ZIP.
 
-This contains everything you need to run your app locally.
+## Installation & Getting Started
 
-View your app in AI Studio: https://ai.studio/apps/f4b9f7ed-afce-431f-8dc5-62a47cbb3705
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js (v18 or later)
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+
+2. Copy the environment template and configure it:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Set `GEMINI_API_KEY` in `.env.local` if you want AI-assisted features.
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+Other scripts:
+- `npm run build` – Build for production
+- `npm run start` – Start the production server
+- `npm run lint` – Run the ESLint linter
+
+## File Structure
+
+| File / Folder | Role |
+|---|---|
+| `app/layout.tsx` | Root Next.js layout – sets browser title and global metadata |
+| `app/page.tsx` | Main application page – the complete Quartett editor UI |
+| `app/globals.css` | Global Tailwind CSS styles |
+| `components/RadarChart.tsx` | D3.js radar/spider chart component for card visualization |
+| `hooks/use-mobile.ts` | Custom React hook for responsive mobile detection |
+| `lib/types.ts` | Core TypeScript type definitions (`Card`, `PropertyDefinition`, `DeckSettings`, `QuartettProject`) |
+| `lib/csv-utils.ts` | CSV and ZIP import/export utilities |
+| `lib/utils.ts` | General helper utilities (e.g., Tailwind class merging) |
+| `next.config.ts` | Next.js configuration (standalone output, webpack tuning) |
+| `metadata.json` | App metadata for AI Studio integration |
+| `.env.example` | Environment variable template |
+| `LICENSE` | MIT License |
+
+## Application Architecture
+
+Quartett-Meister is a **Next.js 15** application using the App Router with **React 19** and **Tailwind CSS 4**. All editing logic lives in a single client-side component (`app/page.tsx`) that manages state for:
+
+1. **Settings** – Configure the deck: number of cards (N), number of properties (P), points scale (S), budget (B), and tolerance (T).
+2. **Properties** – Define each property's name, unit, value range (min/max), win condition (higher/lower wins), and scale type (linear/logarithmic).
+3. **Cards** – Edit each card by distributing a fixed point budget across properties using sliders. A radar chart provides live visual feedback.
+4. **Table / Grid view** – Review all cards at a glance.
+5. **Documentation** – Built-in guide explaining the CSV schema and app workflow.
+6. **Import / Export** – Save and load work via CSV files (settings, properties, cards separately) or as a single ZIP archive. Projects can also be shared as a URL-encoded link.
+
+The **budget system** ensures balance: every card must spend between `B - T` and `B + T` points total across all its properties, keeping all cards equally powerful while still allowing strategic trade-offs.
+
+Radar charts are rendered with **D3.js** and allow interactive editing directly on the chart.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE) – © Markus Rudolph.

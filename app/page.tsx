@@ -1016,8 +1016,19 @@ export default function QuartettEditor() {
                 className="space-y-8"
               >
                 <header>
-                  <h1 className="text-4xl font-serif italic mb-2">CSV Schema Dokumentation</h1>
-                  <p className="text-[#1a1a1a]/60">Anleitung zum Importieren und Exportieren von Daten.</p>
+                  <h1 className="text-4xl font-serif italic mb-2">Dokumentation</h1>
+                  <p className="text-[#1a1a1a]/60">Erklärung zur App und Anleitung zum Importieren und Exportieren von Daten.</p>
+                  <div className="mt-3 text-xs text-[#1a1a1a]/50">
+                    Quellcode:{' '}
+                    <a
+                      href="https://github.com/Lotes/quartett-meister"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-[#1a1a1a]/80"
+                    >
+                      github.com/Lotes/quartett-meister
+                    </a>
+                  </div>
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-800 flex gap-3">
                     <Info size={18} className="shrink-0" />
                     <p>
@@ -1025,6 +1036,70 @@ export default function QuartettEditor() {
                     </p>
                   </div>
                 </header>
+
+                <section className="bg-white p-8 rounded-[40px] border border-[#1a1a1a]/10 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3 text-orange-600">
+                    <Info size={24} />
+                    <h2 className="text-2xl font-serif">Wie funktioniert Quartett-Meister?</h2>
+                  </div>
+                  <p className="text-sm text-[#1a1a1a]/70">
+                    Quartett-Meister ist ein Editor für Quartett-Kartenspiele (auch bekannt als Top Trumps). Hier kannst du
+                    ein vollständiges Kartenset erstellen, ausbalancieren und exportieren.
+                  </p>
+                  <ol className="space-y-4 text-sm list-none">
+                    <li>
+                      <strong>1. Kartenzahl N einstellen.</strong>{' '}
+                      In den Deck-Einstellungen legst du fest, wie viele Karten <em>N</em> das Deck enthält.
+                    </li>
+                    <li>
+                      <strong>2. Eigenschaftsanzahl P festlegen.</strong>{' '}
+                      Du bestimmst, wie viele Eigenschaften <em>P</em> jede Karte besitzt. Alle Karten teilen dieselben
+                      Eigenschaften; jede Eigenschaft hat pro Karte einen individuellen Wert. Wie beim klassischen Quartett
+                      wird der Wert einer Eigenschaft mit dem entsprechenden Wert der gegnerischen Karte verglichen –
+                      normalerweise gewinnt der höhere Wert. Die Siegbedingung kann jedoch invertiert werden, sodass der
+                      niedrigere Wert gewinnt.
+                    </li>
+                    <li>
+                      <strong>3. Eigenschaften benennen und konfigurieren.</strong>{' '}
+                      Auf der Eigenschaftsseite kann jede Eigenschaft mit einem Namen und einer Einheit versehen werden
+                      (z.B. <em>Geschwindigkeit</em> in <em>km/h</em>). Außerdem definierst du einen Minimal- und einen
+                      Maximalwert. Zwischen diesen Grenzen wird die Werteskala aufgespannt – wahlweise <em>linear</em> oder{' '}
+                      <em>logarithmisch</em>. Der Unterschied zwischen den Skalierungen zeigt sich besonders deutlich bei
+                      der Budgetverteilung.
+                    </li>
+                    <li>
+                      <strong>4. Punkteskala S festlegen.</strong>{' '}
+                      Pro Eigenschaft kann man maximal <em>S</em> Punkte vergeben. Die Punkteskala reicht stets von 0 bis
+                      S und ist immer linear – unabhängig von der Werteskala der Eigenschaft. Die Punkte dienen der
+                      Visualisierung im Radar-Chart. Typische Werte für S sind 10 oder 100; je höher, desto feiner sind
+                      die Einstellmöglichkeiten.
+                    </li>
+                    <li>
+                      <strong>5. Budget B festlegen.</strong>{' '}
+                      Pro Karte muss ein Eigenschaftsbudget <em>B</em> ausgegeben werden. Der Standardwert ist{' '}
+                      <em>P × S / 2</em> (die Hälfte der Maximalpunkte). Das feste Budget soll sicherstellen, dass alle
+                      Karten gleich stark ausbalanciert sind – jede Karte kann in einer Eigenschaft brillieren, ist dafür
+                      aber in einer anderen schwächer.
+                    </li>
+                    <li>
+                      <strong>6. Toleranz T angeben.</strong>{' '}
+                      Mit der Toleranz <em>T</em> (0 ≤ T ≤ B) legst du fest, wie genau das Budget eingehalten werden
+                      muss. Eine Karte gilt als fertig, wenn das ausgegebene Budget zwischen <em>B − T</em> und{' '}
+                      <em>B + T</em> liegt. Bei T = 0 muss das Budget exakt verteilt werden.
+                    </li>
+                    <li>
+                      <strong>7. Karten konfigurieren.</strong>{' '}
+                      Zum Schluss werden die Karten Stück für Stück konfiguriert: Mit Schiebereglern verteilst du Punkte
+                      auf die einzelnen Eigenschaften. Ein Radar-Chart zeigt live, wie die Karte aussieht. Ist das Budget
+                      innerhalb der Toleranz verbraucht, ist die Karte fertig.
+                    </li>
+                    <li>
+                      <strong>8. Exportieren &amp; Teilen.</strong>{' '}
+                      Sind alle Karten fertig, kannst du das Deck als CSV-Dateien oder als ZIP-Archiv exportieren. Das
+                      Projekt lässt sich außerdem als Link teilen.
+                    </li>
+                  </ol>
+                </section>
 
                 <div className="grid grid-cols-1 gap-8">
                   <section className="bg-white p-8 rounded-[40px] border border-[#1a1a1a]/10 shadow-sm space-y-6">
