@@ -129,11 +129,20 @@ export async function downloadProjectAsZip(project: QuartettProject) {
   }
 }
 
-export async function importProjectFromZip(
-  file: File,
+export async function exportProjectToBase64Zip(project: QuartettProject): Promise<string> {
+  const zip = new JSZip();
+  zip.file('parameter.csv', exportSettingsToCSV(project.settings));
+  zip.file('eigenschaften.csv', exportPropertiesToCSV(project.properties));
+  zip.file('karten.csv', exportCardsToCSV(project.cards, project.properties));
+  const base64 = await zip.generateAsync({ type: 'base64' });
+  // Convert standard base64 to base64url (URL-safe, no padding)
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function importProjectFromZipObject(
+  zip: JSZip,
   currentProperties: PropertyDefinition[]
 ): Promise<Partial<QuartettProject>> {
-  const zip = await JSZip.loadAsync(file);
   const result: Partial<QuartettProject> = {};
 
   const paramFile = zip.file('parameter.csv');
@@ -157,4 +166,24 @@ export async function importProjectFromZip(
   }
 
   return result;
+}
+
+export async function importProjectFromZip(
+  file: File,
+  currentProperties: PropertyDefinition[]
+): Promise<Partial<QuartettProject>> {
+  const zip = await JSZip.loadAsync(file);
+  return importProjectFromZipObject(zip, currentProperties);
+}
+
+export async function importProjectFromBase64Zip(
+  base64url: string,
+  currentProperties: PropertyDefinition[]
+): Promise<Partial<QuartettProject>> {
+  // Convert base64url back to standard base64 with padding
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = (4 - (base64.length % 4)) % 4;
+  const padded = base64 + '='.repeat(padding);
+  const zip = await JSZip.loadAsync(padded, { base64: true });
+  return importProjectFromZipObject(zip, currentProperties);
 }
