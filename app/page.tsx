@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Settings, 
   Table as TableIcon, 
@@ -17,6 +17,8 @@ import {
   FileText,
   HelpCircle,
   FolderSync,
+  Link,
+  Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -36,7 +38,9 @@ import {
   importSettingsFromCSV,
   downloadCSV,
   downloadProjectAsZip,
+  exportProjectToBase64Zip,
   importProjectFromZip,
+  importProjectFromBase64Zip,
 } from '@/lib/csv-utils';
 import RadarChart from '@/components/RadarChart';
 import { clsx, type ClassValue } from 'clsx';
@@ -119,6 +123,10 @@ export default function QuartettEditor() {
   const [mounted, setMounted] = useState(false);
   const [currentView, setCurrentView] = useState<View>('grid');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [pendingZipParam, setPendingZipParam] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [zipParamError, setZipParamError] = useState(false);
+  const linkCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load from LocalStorage on mount
   useEffect(() => {
@@ -134,6 +142,12 @@ export default function QuartettEditor() {
       } catch (e) {
         // ignore
       }
+    }
+    // Check for zip query parameter in URL
+    const searchParams = new URLSearchParams(window.location.search);
+    const zipParam = searchParams.get('zip');
+    if (zipParam) {
+      setPendingZipParam(zipParam);
     }
     setTimeout(() => setMounted(true), 0);
   }, []);
@@ -351,8 +365,99 @@ export default function QuartettEditor() {
     }
   };
 
+  const handleCopyLink = async () => {
+    const base64 = await exportProjectToBase64Zip(project);
+    const url = new URL(window.location.href);
+    url.searchParams.set('zip', base64);
+    await navigator.clipboard.writeText(url.toString());
+    if (linkCopiedTimerRef.current !== null) {
+      clearTimeout(linkCopiedTimerRef.current);
+    }
+    setLinkCopied(true);
+    linkCopiedTimerRef.current = setTimeout(() => {
+      setLinkCopied(false);
+      linkCopiedTimerRef.current = null;
+    }, 2000);
+  };
+
+  const applyImportedProject = (imported: Partial<QuartettProject>) => {
+    setProject(prev => {
+      if (!prev) return prev;
+      const newSettings = imported.settings ? { ...prev.settings, ...imported.settings } : prev.settings;
+      const newProperties = imported.properties ?? prev.properties;
+      const newCards = imported.cards ?? prev.cards;
+      return {
+        ...prev,
+        settings: {
+          ...newSettings,
+          propertyCount: newProperties.length,
+          cardCount: newCards.length,
+        },
+        properties: newProperties,
+        cards: newCards,
+      };
+    });
+  };
+
+  const removeZipParam = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('zip');
+    window.history.replaceState({}, '', url.toString());
+    setPendingZipParam(null);
+    setZipParamError(false);
+  };
+
+  const handleConfirmLoadZipParam = async () => {
+    if (!pendingZipParam) return;
+    try {
+      const imported = await importProjectFromBase64Zip(pendingZipParam, project.properties);
+      applyImportedProject(imported);
+      removeZipParam();
+    } catch (e) {
+      setZipParamError(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f5f5f0] text-[#1a1a1a] font-sans">
+      {/* Zip-from-URL confirmation dialog */}
+      {pendingZipParam && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-amber-600">
+              <AlertCircle size={24} />
+              <h2 className="text-2xl font-serif">Projekt aus Link laden?</h2>
+            </div>
+            <p className="text-sm text-[#1a1a1a]/70">
+              Der aufgerufene Link enthält ein eingebettetes Quartett-Projekt.
+              Wenn du es lädst, wird das <strong>aktuelle Projekt überschrieben</strong>.
+              Stelle sicher, dass du keine ungesicherten Änderungen verlieren möchtest.
+            </p>
+            {zipParamError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex gap-2">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <span>Der Link ist ungültig oder beschädigt. Das Projekt konnte nicht geladen werden.</span>
+              </div>
+            )}
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                onClick={removeZipParam}
+                className="px-5 py-2 rounded-xl border border-[#1a1a1a]/20 text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/5 transition-colors"
+              >
+                Abbrechen
+              </button>
+              {!zipParamError && (
+                <button
+                  onClick={handleConfirmLoadZipParam}
+                  className="px-5 py-2 rounded-xl bg-[#1a1a1a] text-white text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/80 transition-colors"
+                >
+                  Projekt laden
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Navigation Rail */}
       <nav className="fixed left-0 top-0 bottom-0 w-20 bg-white border-r border-[#1a1a1a]/10 flex flex-col items-center py-8 gap-8 z-50">
         <div className="w-12 h-12 bg-[#1a1a1a] rounded-xl flex items-center justify-center text-white mb-4">
@@ -1042,6 +1147,24 @@ export default function QuartettEditor() {
                       <input type="file" accept=".zip" onChange={handleUploadZip} className="hidden" />
                     </label>
                   </div>
+                </div>
+
+                {/* Copy Link */}
+                <div className="bg-white p-8 rounded-3xl border border-[#1a1a1a]/10 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 text-purple-600">
+                    <Link size={24} />
+                    <h2 className="text-2xl font-serif">Link kopieren</h2>
+                  </div>
+                  <p className="text-sm text-[#1a1a1a]/70">
+                    Erzeugt einen Link, der das gesamte Projekt als eingebettete ZIP-Datei enthält. Über diesen Link kann das Projekt direkt in einem Browser geöffnet werden.
+                  </p>
+                  <button
+                    onClick={handleCopyLink}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-[#1a1a1a] text-white rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/80 transition-colors"
+                  >
+                    {linkCopied ? <Check size={16} /> : <Link size={16} />}
+                    {linkCopied ? 'Link kopiert!' : 'Link in Zwischenablage kopieren'}
+                  </button>
                 </div>
 
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 flex gap-3">
