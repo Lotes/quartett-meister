@@ -69,6 +69,33 @@ export function importCardsFromCSV(csvText: string, properties: PropertyDefiniti
   });
 }
 
+export function exportSettingsToCSV(settings: DeckSettings): string {
+  const data = [
+    { setting: 'N', value: settings.cardCount },
+    { setting: 'P', value: settings.propertyCount },
+    { setting: 'S', value: settings.maxPoints },
+    { setting: 'B', value: settings.budget },
+    { setting: 'T', value: settings.tolerance },
+  ];
+  return d3.csvFormat(data);
+}
+
+export function importSettingsFromCSV(csvText: string): Partial<DeckSettings> {
+  const parsed = parseDSV(csvText);
+  const result: Partial<DeckSettings> = {};
+  parsed.forEach((row: any) => {
+    const key = row.setting?.trim().toUpperCase();
+    const val = parseInt(row.value, 10);
+    if (isNaN(val)) return;
+    if (key === 'N') result.cardCount = val;
+    else if (key === 'P') result.propertyCount = val;
+    else if (key === 'S') result.maxPoints = val;
+    else if (key === 'B') result.budget = val;
+    else if (key === 'T') result.tolerance = val;
+  });
+  return result;
+}
+
 export function downloadCSV(csvText: string, filename: string) {
   const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');

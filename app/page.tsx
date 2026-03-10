@@ -31,6 +31,8 @@ import {
   importPropertiesFromCSV, 
   exportCardsToCSV, 
   importCardsFromCSV, 
+  exportSettingsToCSV,
+  importSettingsFromCSV,
   downloadCSV 
 } from '@/lib/csv-utils';
 import RadarChart from '@/components/RadarChart';
@@ -299,6 +301,23 @@ export default function QuartettEditor() {
     reader.readAsText(file);
   };
 
+  const handleExportSettings = () => {
+    const csv = exportSettingsToCSV(project.settings);
+    downloadCSV(csv, 'quartett-startparameter.csv');
+  };
+
+  const handleImportSettings = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csvText = event.target?.result as string;
+      const imported = importSettingsFromCSV(csvText);
+      setProject(prev => prev ? { ...prev, settings: { ...prev.settings, ...imported } } : prev);
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="min-h-screen bg-[#f5f5f0] text-[#1a1a1a] font-sans">
       {/* Navigation Rail */}
@@ -363,9 +382,25 @@ export default function QuartettEditor() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                <header>
-                  <h1 className="text-4xl font-serif italic mb-2">Deck-Einstellungen</h1>
-                  <p className="text-[#1a1a1a]/60">Konfiguriere die Grundparameter deines Quartett-Spiels.</p>
+                <header className="flex justify-between items-end">
+                  <div>
+                    <h1 className="text-4xl font-serif italic mb-2">Deck-Einstellungen</h1>
+                    <p className="text-[#1a1a1a]/60">Konfiguriere die Grundparameter deines Quartett-Spiels.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <label className="flex items-center gap-2 px-4 py-2 bg-white border border-[#1a1a1a]/10 rounded-xl text-[10px] uppercase tracking-widest font-bold cursor-pointer hover:bg-[#1a1a1a]/5 transition-colors">
+                      <Upload size={14} />
+                      Import CSV
+                      <input type="file" accept=".csv" onChange={handleImportSettings} className="hidden" />
+                    </label>
+                    <button 
+                      onClick={handleExportSettings}
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-[#1a1a1a]/10 rounded-xl text-[10px] uppercase tracking-widest font-bold hover:bg-[#1a1a1a]/5 transition-colors"
+                    >
+                      <Download size={14} />
+                      Export CSV
+                    </button>
+                  </div>
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -843,6 +878,31 @@ export default function QuartettEditor() {
                 </header>
 
                 <div className="grid grid-cols-1 gap-8">
+                  <section className="bg-white p-8 rounded-[40px] border border-[#1a1a1a]/10 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3 text-purple-600">
+                      <Settings size={24} />
+                      <h2 className="text-2xl font-serif">Startparameter (Settings)</h2>
+                    </div>
+                    <p className="text-sm text-[#1a1a1a]/70">
+                      Die CSV-Datei für Startparameter definiert die Grundkonfiguration des Quartett-Decks. Sie kann im Bereich <strong>Deck-Einstellungen</strong> importiert und exportiert werden.
+                    </p>
+                    <div className="bg-[#1a1a1a]/5 p-4 rounded-2xl font-mono text-xs overflow-x-auto">
+                      setting,value<br />
+                      N,32<br />
+                      P,6<br />
+                      S,10<br />
+                      B,30<br />
+                      T,0
+                    </div>
+                    <ul className="space-y-3 text-sm">
+                      <li><strong>N</strong> – <em>Kartenanzahl</em>: Wie viele Karten das Deck insgesamt enthält (z.B. <code>32</code>).</li>
+                      <li><strong>P</strong> – <em>Eigenschaftsanzahl</em>: Wie viele Vergleichseigenschaften jede Karte hat (z.B. <code>6</code>).</li>
+                      <li><strong>S</strong> – <em>Max. Punkte pro Eigenschaft</em>: Die Obergrenze der Punkteskala für das Radar-Diagramm (z.B. <code>10</code>). Eine Eigenschaft kann zwischen 0 und S Punkten haben.</li>
+                      <li><strong>B</strong> – <em>Budget</em>: Die Gesamtpunktezahl, die auf einer Karte über alle Eigenschaften verteilt werden muss (z.B. <code>30</code>). Standardwert: P × S / 2.</li>
+                      <li><strong>T</strong> – <em>Toleranz</em>: Die erlaubte Abweichung vom Budget (0 ≤ T ≤ B). Das Kartenbudget muss zwischen B−T und B+T liegen (z.B. <code>0</code> für exaktes Budget).</li>
+                    </ul>
+                  </section>
+
                   <section className="bg-white p-8 rounded-[40px] border border-[#1a1a1a]/10 shadow-sm space-y-6">
                     <div className="flex items-center gap-3 text-blue-600">
                       <FileText size={24} />
