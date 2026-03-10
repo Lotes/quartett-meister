@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
-import { PropertyDefinition, Card, WinCondition, ScaleType, DeckSettings } from './types';
+import JSZip from 'jszip';
+import { PropertyDefinition, Card, WinCondition, ScaleType, DeckSettings, QuartettProject } from './types';
 
 export function exportPropertiesToCSV(properties: PropertyDefinition[]): string {
   const data = properties.map(p => ({
@@ -108,4 +109,52 @@ export function downloadCSV(csvText: string, filename: string) {
     link.click();
     document.body.removeChild(link);
   }
+}
+
+export async function downloadProjectAsZip(project: QuartettProject) {
+  const zip = new JSZip();
+  zip.file('parameter.csv', exportSettingsToCSV(project.settings));
+  zip.file('eigenschaften.csv', exportPropertiesToCSV(project.properties));
+  zip.file('karten.csv', exportCardsToCSV(project.cards, project.properties));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'quartett.zip');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+export async function importProjectFromZip(
+  file: File,
+  currentProperties: PropertyDefinition[]
+): Promise<Partial<QuartettProject>> {
+  const zip = await JSZip.loadAsync(file);
+  const result: Partial<QuartettProject> = {};
+
+  const paramFile = zip.file('parameter.csv');
+  if (paramFile) {
+    const text = await paramFile.async('string');
+    result.settings = importSettingsFromCSV(text) as DeckSettings;
+  }
+
+  const propFile = zip.file('eigenschaften.csv');
+  let properties = currentProperties;
+  if (propFile) {
+    const text = await propFile.async('string');
+    properties = importPropertiesFromCSV(text);
+    result.properties = properties;
+  }
+
+  const cardsFile = zip.file('karten.csv');
+  if (cardsFile) {
+    const text = await cardsFile.async('string');
+    result.cards = importCardsFromCSV(text, properties);
+  }
+
+  return result;
 }

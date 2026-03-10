@@ -15,7 +15,8 @@ import {
   Download,
   Upload,
   FileText,
-  HelpCircle
+  HelpCircle,
+  FolderSync,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -33,7 +34,9 @@ import {
   importCardsFromCSV, 
   exportSettingsToCSV,
   importSettingsFromCSV,
-  downloadCSV 
+  downloadCSV,
+  downloadProjectAsZip,
+  importProjectFromZip,
 } from '@/lib/csv-utils';
 import RadarChart from '@/components/RadarChart';
 import { clsx, type ClassValue } from 'clsx';
@@ -109,7 +112,7 @@ function pointsToValue(points: number, prop: PropertyDefinition, maxPoints: numb
   }
 }
 
-type View = 'settings' | 'properties' | 'grid' | 'detail' | 'documentation';
+type View = 'settings' | 'properties' | 'grid' | 'detail' | 'documentation' | 'import-export';
 
 export default function QuartettEditor() {
   const [project, setProject] = useState<QuartettProject>(INITIAL_PROJECT);
@@ -269,7 +272,7 @@ export default function QuartettEditor() {
 
   const handleExportProperties = () => {
     const csv = exportPropertiesToCSV(project.properties);
-    downloadCSV(csv, 'quartett-eigenschaften.csv');
+    downloadCSV(csv, 'eigenschaften.csv');
   };
 
   const handleImportProperties = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -286,7 +289,7 @@ export default function QuartettEditor() {
 
   const handleExportCards = () => {
     const csv = exportCardsToCSV(project.cards, project.properties);
-    downloadCSV(csv, 'quartett-karten.csv');
+    downloadCSV(csv, 'karten.csv');
   };
 
   const handleImportCards = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -303,7 +306,7 @@ export default function QuartettEditor() {
 
   const handleExportSettings = () => {
     const csv = exportSettingsToCSV(project.settings);
-    downloadCSV(csv, 'quartett-startparameter.csv');
+    downloadCSV(csv, 'parameter.csv');
   };
 
   const handleImportSettings = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -316,6 +319,36 @@ export default function QuartettEditor() {
       setProject(prev => prev ? { ...prev, settings: { ...prev.settings, ...imported } } : prev);
     };
     reader.readAsText(file);
+  };
+
+  const handleDownloadZip = async () => {
+    await downloadProjectAsZip(project);
+  };
+
+  const handleUploadZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const imported = await importProjectFromZip(file, project.properties);
+      setProject(prev => {
+        if (!prev) return prev;
+        const newSettings = imported.settings ? { ...prev.settings, ...imported.settings } : prev.settings;
+        const newProperties = imported.properties ?? prev.properties;
+        const newCards = imported.cards ?? prev.cards;
+        return {
+          ...prev,
+          settings: {
+            ...newSettings,
+            propertyCount: newProperties.length,
+            cardCount: newCards.length,
+          },
+          properties: newProperties,
+          cards: newCards,
+        };
+      });
+    } finally {
+      e.target.value = '';
+    }
   };
 
   return (
@@ -357,6 +390,17 @@ export default function QuartettEditor() {
           title="Kartenübersicht"
         >
           <LayoutGrid size={24} />
+        </button>
+
+        <button 
+          onClick={() => setCurrentView('import-export')}
+          className={cn(
+            "p-3 rounded-xl transition-all",
+            currentView === 'import-export' ? "bg-[#1a1a1a] text-white" : "text-[#1a1a1a]/40 hover:bg-[#1a1a1a]/5"
+          )}
+          title="Import / Export"
+        >
+          <FolderSync size={24} />
         </button>
 
         <button 
@@ -948,6 +992,63 @@ export default function QuartettEditor() {
                       </p>
                     </div>
                   </section>
+                </div>
+              </motion.div>
+            )}
+            {currentView === 'import-export' && (
+              <motion.div
+                key="import-export"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+              >
+                <header>
+                  <h1 className="text-4xl font-serif italic mb-2">Import / Export</h1>
+                  <p className="text-[#1a1a1a]/60">Lade das gesamte Projekt als ZIP-Datei herunter oder lade ein gespeichertes Projekt hoch.</p>
+                </header>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Download ZIP */}
+                  <div className="bg-white p-8 rounded-3xl border border-[#1a1a1a]/10 shadow-sm space-y-4 flex flex-col">
+                    <div className="flex items-center gap-3 text-green-600">
+                      <Download size={24} />
+                      <h2 className="text-2xl font-serif">Download</h2>
+                    </div>
+                    <p className="text-sm text-[#1a1a1a]/70 flex-1">
+                      Exportiert alle drei CSV-Dateien (<code>parameter.csv</code>, <code>eigenschaften.csv</code>, <code>karten.csv</code>) gebündelt als <strong>quartett.zip</strong>.
+                    </p>
+                    <button
+                      onClick={handleDownloadZip}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-[#1a1a1a] text-white rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/80 transition-colors"
+                    >
+                      <Download size={16} />
+                      quartett.zip herunterladen
+                    </button>
+                  </div>
+
+                  {/* Upload ZIP */}
+                  <div className="bg-white p-8 rounded-3xl border border-[#1a1a1a]/10 shadow-sm space-y-4 flex flex-col">
+                    <div className="flex items-center gap-3 text-blue-600">
+                      <Upload size={24} />
+                      <h2 className="text-2xl font-serif">Upload</h2>
+                    </div>
+                    <p className="text-sm text-[#1a1a1a]/70 flex-1">
+                      Importiert ein zuvor gespeichertes Projekt aus einer <strong>quartett.zip</strong>. Die Datei muss <code>parameter.csv</code>, <code>eigenschaften.csv</code> und/oder <code>karten.csv</code> enthalten.
+                    </p>
+                    <label className="flex items-center justify-center gap-2 px-6 py-3 bg-[#1a1a1a] text-white rounded-xl text-sm font-bold uppercase tracking-widest cursor-pointer hover:bg-[#1a1a1a]/80 transition-colors">
+                      <Upload size={16} />
+                      quartett.zip hochladen
+                      <input type="file" accept=".zip" onChange={handleUploadZip} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 flex gap-3">
+                  <Info size={18} className="shrink-0" />
+                  <p>
+                    <strong>Hinweis:</strong> Beim Upload wird das aktuelle Projekt vollständig ersetzt. Stelle sicher, dass du eine Sicherungskopie hast, bevor du ein neues Projekt hochlädst.
+                  </p>
                 </div>
               </motion.div>
             )}
