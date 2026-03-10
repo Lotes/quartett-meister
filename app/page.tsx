@@ -29,6 +29,7 @@ import {
   WinCondition, 
   ScaleType 
 } from '@/lib/types';
+import { comparePair, CardMetrics } from '@/lib/metrics';
 import { 
   exportPropertiesToCSV, 
   importPropertiesFromCSV, 
@@ -118,6 +119,27 @@ function pointsToValue(points: number, prop: PropertyDefinition, maxPoints: numb
 
 type View = 'settings' | 'properties' | 'grid' | 'detail' | 'documentation' | 'import-export';
 
+/**
+ * Pure (non-closure) version of the card-ready check used inside useMemo.
+ * Mirrors the logic of getCardErrors / isCardReady in the component.
+ */
+function isCardReadyPure(card: Card, project: QuartettProject): boolean {
+  for (const prop of project.properties) {
+    const val = card.values[prop.id];
+    if (val === undefined || val < prop.min || val > prop.max) return false;
+  }
+  const budget = project.properties.reduce((sum, prop) => {
+    const val = card.values[prop.id] ?? prop.min;
+    return sum + valueToPoints(val, prop, project.settings.maxPoints);
+  }, 0);
+  const { budget: B, tolerance: T } = project.settings;
+  if (budget < B - T || budget > B + T) return false;
+  if (!card.name.trim() || !card.quartettId.trim()) return false;
+  const idCount = project.cards.filter(c => c.quartettId === card.quartettId).length;
+  if (idCount !== 1) return false;
+  return true;
+}
+
 export default function QuartettEditor() {
   const [project, setProject] = useState<QuartettProject>(INITIAL_PROJECT);
   const [mounted, setMounted] = useState(false);
@@ -127,6 +149,17 @@ export default function QuartettEditor() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [zipParamError, setZipParamError] = useState(false);
   const linkCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Pairwise cache for incremental Siegespunkte / Stichpunkte computation.
+  // Outer key: card A id, inner key: card B id → wins and ties for A vs B.
+  // Nested Map allows O(1) removal of all pairs for a single card.
+  const pairwiseCacheRef = useRef<Map<string, Map<string, { wins: number; ties: number }>>>(new Map());
+  // Previous ready-card map (id → card) used to detect which cards changed.
+  // React's state-update pattern (spread + map) preserves object references for
+  // unchanged cards, so a reference-equality check on card.values is sufficient.
+  const prevReadyMapRef = useRef<Map<string, Card>>(new Map());
+  // Signature of the properties array used to detect property changes.
+  const prevPropSigRef = useRef<string>('');
 
   // Load from LocalStorage on mount
   useEffect(() => {
@@ -158,6 +191,115 @@ export default function QuartettEditor() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
     }
   }, [project, mounted]);
+
+  /**
+   * Incrementally compute Siegespunkte and Stichpunkte for every ready card.
+   *
+   * Uses isCardReadyPure (a module-level pure function) so this hook can be
+   * placed before the early return and still obey the Rules of Hooks.
+   *
+   * When project changes, only the pairs involving cards whose values or
+   * ready-status changed are recomputed (O(N×P) per changed card instead of
+   * O(N²×P) for a full rebuild).
+   */
+  const cardMetrics = useMemo((): Map<string, CardMetrics> => {
+    const readyCards = project.cards.filter(c => isCardReadyPure(c, project));
+    const pairwise = pairwiseCacheRef.current;
+    const prevReadyMap = prevReadyMapRef.current;
+
+    // When property definitions change (win-condition, id, etc.) the cached
+    // comparison results are no longer valid — clear everything.
+    const propSig = project.properties.map(p => `${p.id}:${p.winCondition}`).join(',');
+    if (propSig !== prevPropSigRef.current) {
+      pairwise.clear();
+      prevReadyMap.clear();
+      prevPropSigRef.current = propSig;
+    }
+
+    const currReadyMap = new Map(readyCards.map(c => [c.id, c]));
+
+    // Collect IDs of cards whose pairs need to be (re-)computed:
+    //   • cards that were ready before but are no longer ready
+    //   • cards that are now ready but weren't before, or whose values changed
+    const changedIds = new Set<string>();
+    for (const [id] of prevReadyMap) {
+      if (!currReadyMap.has(id)) changedIds.add(id);
+    }
+    for (const card of readyCards) {
+      const prev = prevReadyMap.get(card.id);
+      if (!prev || prev.values !== card.values) changedIds.add(card.id);
+    }
+
+    // Remove stale pairs and recompute fresh ones for every changed card.
+    // Using the nested Map structure, invalidating all pairs for a card is O(1)
+    // for the card's own row, plus O(N) to remove it from each other card's row.
+    for (const changedId of changedIds) {
+      pairwise.delete(changedId); // O(1): removes all A→B pairs for this card
+      for (const [, bMap] of pairwise) {
+        bMap.delete(changedId);   // O(1) per entry: removes B→A pairs
+      }
+
+      const changedCard = currReadyMap.get(changedId);
+      if (!changedCard) continue; // card is no longer ready — pairs already removed
+
+      const aMap = new Map<string, { wins: number; ties: number }>();
+      pairwise.set(changedId, aMap);
+
+      for (const [otherId, otherCard] of currReadyMap) {
+        if (otherId === changedId) continue;
+        if (aMap.has(otherId)) continue; // symmetric entry already populated
+
+        const { wins, ties } = comparePair(changedCard, otherCard, project.properties);
+        aMap.set(otherId, { wins, ties });
+
+        // Store the symmetric direction: B vs A = (losses of A, same ties)
+        let bMap = pairwise.get(otherId);
+        if (!bMap) {
+          bMap = new Map();
+          pairwise.set(otherId, bMap);
+        }
+        bMap.set(changedId, {
+          wins: project.properties.length - wins - ties,
+          ties,
+        });
+      }
+    }
+
+    prevReadyMapRef.current = currReadyMap;
+
+    // Aggregate per-card totals and convert to percentage scores.
+    const N = readyCards.length;
+    const P = project.properties.length;
+    const totalComparisons = P * (N - 1);
+    const metrics = new Map<string, CardMetrics>();
+
+    if (totalComparisons <= 0) {
+      for (const card of readyCards) {
+        metrics.set(card.id, { siegespunkte: 0, stichpunkte: 0 });
+      }
+      return metrics;
+    }
+
+    for (const [cardId] of currReadyMap) {
+      let totalWins = 0;
+      let totalTies = 0;
+      const cardPairs = pairwise.get(cardId);
+      if (cardPairs) {
+        for (const [otherId, pair] of cardPairs) {
+          if (currReadyMap.has(otherId)) {
+            totalWins += pair.wins;
+            totalTies += pair.ties;
+          }
+        }
+      }
+      metrics.set(cardId, {
+        siegespunkte: Math.ceil(100 * totalWins / totalComparisons),
+        stichpunkte: Math.ceil(100 * totalTies / totalComparisons),
+      });
+    }
+
+    return metrics;
+  }, [project]); // comparePair / isCardReadyPure / project.properties are pure functions of project
 
   if (!mounted) return <div className="flex items-center justify-center h-screen">Lade...</div>;
 
@@ -832,6 +974,22 @@ export default function QuartettEditor() {
                             style={{ width: `${Math.min(100, (budget / project.settings.budget) * 100)}%` }}
                           />
                         </div>
+                        {ready && (() => {
+                          const m = cardMetrics.get(card.id);
+                          if (!m) return null;
+                          return (
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <div className="bg-blue-50 rounded-xl px-2 py-1.5 text-center">
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-blue-400">Siege</div>
+                                <div className="text-sm font-serif text-blue-700">{m.siegespunkte}</div>
+                              </div>
+                              <div className="bg-purple-50 rounded-xl px-2 py-1.5 text-center">
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-purple-400">Stiche</div>
+                                <div className="text-sm font-serif text-purple-700">{m.stichpunkte}</div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </motion.div>
                     );
                   })}
@@ -911,6 +1069,25 @@ export default function QuartettEditor() {
                         </ul>
                       </div>
                     )}
+                    {(() => {
+                      const m = cardMetrics.get(selectedCard.id);
+                      if (!m) return null;
+                      return (
+                        <div className="bg-white p-6 rounded-3xl border border-[#1a1a1a]/10 shadow-sm">
+                          <h3 className="text-xs uppercase tracking-widest font-bold text-[#1a1a1a]/40 mb-4">Vergleichsstatistik</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-blue-50 rounded-2xl p-4 text-center">
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-1">Siegespunkte</div>
+                              <div className="text-3xl font-serif text-blue-700">{m.siegespunkte}</div>
+                            </div>
+                            <div className="bg-purple-50 rounded-2xl p-4 text-center">
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1">Stichpunkte</div>
+                              <div className="text-3xl font-serif text-purple-700">{m.stichpunkte}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="bg-white p-6 rounded-3xl border border-[#1a1a1a]/10 shadow-sm">
                       {(() => {
                         const cardBudget = getCardBudget(selectedCard);
