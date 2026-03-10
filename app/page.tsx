@@ -48,6 +48,7 @@ const DEFAULT_SETTINGS: DeckSettings = {
   propertyCount: 6,
   maxPoints: 10,
   budget: 30,
+  tolerance: 0,
 };
 
 const INITIAL_PROJECT: QuartettProject = {
@@ -120,6 +121,10 @@ export default function QuartettEditor() {
     if (saved) {
       try {
         const data = JSON.parse(saved);
+        // Backward compatibility: ensure tolerance exists
+        if (data?.settings && data.settings.tolerance === undefined) {
+          data.settings.tolerance = 0;
+        }
         setTimeout(() => setProject(data), 0);
       } catch (e) {
         // ignore
@@ -218,6 +223,16 @@ export default function QuartettEditor() {
     }, 0);
   };
 
+  const isBudgetValid = (budget: number) => {
+    const { budget: B, tolerance: T } = project.settings;
+    return budget >= B - T && budget <= B + T;
+  };
+
+  const getBudgetRange = () => {
+    const { budget: B, tolerance: T } = project.settings;
+    return { min: B - T, max: B + T };
+  };
+
   const getCardErrors = (card: Card) => {
     const errors: string[] = [];
     project.properties.forEach(prop => {
@@ -230,8 +245,9 @@ export default function QuartettEditor() {
     });
     
     const budget = getCardBudget(card);
-    if (budget !== project.settings.budget) {
-      errors.push(`Budget nicht ausgeglichen: ${budget}/${project.settings.budget}.`);
+    const { budget: B, tolerance: T } = project.settings;
+    if (budget < B - T || budget > B + T) {
+      errors.push(`Budget nicht ausgeglichen: ${budget}/${B}${T > 0 ? ` (Toleranz ±${T})` : ''}.`);
     }
     
     if (!card.name.trim()) errors.push('Name fehlt.');
@@ -403,6 +419,22 @@ export default function QuartettEditor() {
                       className="text-4xl font-serif w-full bg-transparent focus:outline-none border-b border-[#1a1a1a]/10 pb-2"
                     />
                     <p className="mt-4 text-sm text-[#1a1a1a]/60 italic">Gesamtpunkte, die auf einer Karte verteilt werden müssen.</p>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-3xl border border-[#1a1a1a]/10 shadow-sm">
+                    <label className="block text-xs uppercase tracking-widest font-bold text-[#1a1a1a]/40 mb-4">Toleranz (T)</label>
+                    <input 
+                      type="number" 
+                      min={0}
+                      max={project.settings.budget}
+                      value={project.settings.tolerance}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        updateSettings({ tolerance: Math.max(0, Math.min(project.settings.budget, val)) });
+                      }}
+                      className="text-4xl font-serif w-full bg-transparent focus:outline-none border-b border-[#1a1a1a]/10 pb-2"
+                    />
+                    <p className="mt-4 text-sm text-[#1a1a1a]/60 italic">Erlaubte Abweichung vom Budget (0 bis B). Das Kartenbudget muss zwischen B−T und B+T liegen.</p>
                   </div>
                 </div>
               </motion.div>
@@ -602,7 +634,7 @@ export default function QuartettEditor() {
                         <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
                           <span className="text-[#1a1a1a]/40">Budget</span>
                           <span className={cn(
-                            budget === project.settings.budget ? "text-green-600" : "text-amber-600"
+                            isBudgetValid(budget) ? "text-green-600" : "text-amber-600"
                           )}>
                             {budget} / {project.settings.budget}
                           </span>
@@ -611,7 +643,7 @@ export default function QuartettEditor() {
                           <div 
                             className={cn(
                               "h-full transition-all duration-500",
-                              budget === project.settings.budget ? "bg-green-500" : "bg-amber-500"
+                              isBudgetValid(budget) ? "bg-green-500" : "bg-amber-500"
                             )}
                             style={{ width: `${Math.min(100, (budget / project.settings.budget) * 100)}%` }}
                           />
@@ -696,30 +728,36 @@ export default function QuartettEditor() {
                       </div>
                     )}
                     <div className="bg-white p-6 rounded-3xl border border-[#1a1a1a]/10 shadow-sm">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs uppercase tracking-widest font-bold text-[#1a1a1a]/40">Budget-Status</h3>
-                        <span className={cn(
-                          "text-xl font-serif",
-                          getCardBudget(selectedCard) === project.settings.budget ? "text-green-600" : "text-amber-600"
-                        )}>
-                          {getCardBudget(selectedCard)} / {project.settings.budget}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-[#1a1a1a]/5 rounded-full overflow-hidden">
-                        <div 
-                          className={cn(
-                            "h-full transition-all duration-500",
-                            getCardBudget(selectedCard) === project.settings.budget ? "bg-green-500" : "bg-amber-500"
-                          )}
-                          style={{ width: `${Math.min(100, (getCardBudget(selectedCard) / project.settings.budget) * 100)}%` }}
-                        />
-                      </div>
-                      {getCardBudget(selectedCard) !== project.settings.budget && (
-                        <p className="mt-4 text-xs italic text-amber-600 flex items-center gap-2">
-                          <Info size={14} />
-                          Verteile genau {project.settings.budget} Punkte.
-                        </p>
-                      )}
+                      {(() => {
+                        const cardBudget = getCardBudget(selectedCard);
+                        const budgetOk = isBudgetValid(cardBudget);
+                        const { min: budgetMin, max: budgetMax } = getBudgetRange();
+                        const hintText = project.settings.tolerance > 0
+                          ? `Budget muss zwischen ${budgetMin} und ${budgetMax} Punkten liegen.`
+                          : `Verteile genau ${project.settings.budget} Punkte.`;
+                        return (
+                          <>
+                            <div className="flex justify-between items-center mb-4">
+                              <h3 className="text-xs uppercase tracking-widest font-bold text-[#1a1a1a]/40">Budget-Status</h3>
+                              <span className={cn("text-xl font-serif", budgetOk ? "text-green-600" : "text-amber-600")}>
+                                {cardBudget} / {project.settings.budget}
+                              </span>
+                            </div>
+                            <div className="h-2 bg-[#1a1a1a]/5 rounded-full overflow-hidden">
+                              <div 
+                                className={cn("h-full transition-all duration-500", budgetOk ? "bg-green-500" : "bg-amber-500")}
+                                style={{ width: `${Math.min(100, (cardBudget / project.settings.budget) * 100)}%` }}
+                              />
+                            </div>
+                            {!budgetOk && (
+                              <p className="mt-4 text-xs italic text-amber-600 flex items-center gap-2">
+                                <Info size={14} />
+                                {hintText}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="space-y-4">

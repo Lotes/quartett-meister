@@ -23,6 +23,7 @@ export interface DeckSettings {
   propertyCount: number; // P
   maxPoints: number; // S
   budget: number; // B
+  tolerance: number; // T (0 <= T <= B)
 }
 
 export interface QuartettProject {
