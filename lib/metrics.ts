@@ -3,6 +3,9 @@ import { Card, PropertyDefinition } from './types';
 export interface CardMetrics {
   siegespunkte: number;
   stichpunkte: number;
+  totalWins: number;
+  totalTies: number;
+  totalComparisons: number;
 }
 
 /**

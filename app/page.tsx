@@ -275,7 +275,7 @@ export default function QuartettEditor() {
 
     if (totalComparisons <= 0) {
       for (const card of readyCards) {
-        metrics.set(card.id, { siegespunkte: 0, stichpunkte: 0 });
+        metrics.set(card.id, { siegespunkte: 0, stichpunkte: 0, totalWins: 0, totalTies: 0, totalComparisons: 0 });
       }
       return metrics;
     }
@@ -295,6 +295,9 @@ export default function QuartettEditor() {
       metrics.set(cardId, {
         siegespunkte: Math.ceil(100 * totalWins / totalComparisons),
         stichpunkte: Math.ceil(100 * totalTies / totalComparisons),
+        totalWins,
+        totalTies,
+        totalComparisons,
       });
     }
 
@@ -982,10 +985,12 @@ export default function QuartettEditor() {
                               <div className="bg-blue-50 rounded-xl px-2 py-1.5 text-center">
                                 <div className="text-[9px] font-bold uppercase tracking-widest text-blue-400">Siege</div>
                                 <div className="text-sm font-serif text-blue-700">{m.siegespunkte}</div>
+                                <div className="text-[9px] text-blue-400/70">{m.totalWins}&thinsp;/&thinsp;{m.totalComparisons}</div>
                               </div>
                               <div className="bg-purple-50 rounded-xl px-2 py-1.5 text-center">
                                 <div className="text-[9px] font-bold uppercase tracking-widest text-purple-400">Stiche</div>
                                 <div className="text-sm font-serif text-purple-700">{m.stichpunkte}</div>
+                                <div className="text-[9px] text-purple-400/70">{m.totalTies}&thinsp;/&thinsp;{m.totalComparisons}</div>
                               </div>
                             </div>
                           );
@@ -1079,10 +1084,12 @@ export default function QuartettEditor() {
                             <div className="bg-blue-50 rounded-2xl p-4 text-center">
                               <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-1">Siegespunkte</div>
                               <div className="text-3xl font-serif text-blue-700">{m.siegespunkte}</div>
+                              <div className="text-[10px] text-blue-400/70 mt-1">{m.totalWins}&thinsp;/&thinsp;{m.totalComparisons}</div>
                             </div>
                             <div className="bg-purple-50 rounded-2xl p-4 text-center">
                               <div className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1">Stichpunkte</div>
                               <div className="text-3xl font-serif text-purple-700">{m.stichpunkte}</div>
+                              <div className="text-[10px] text-purple-400/70 mt-1">{m.totalTies}&thinsp;/&thinsp;{m.totalComparisons}</div>
                             </div>
                           </div>
                         </div>
