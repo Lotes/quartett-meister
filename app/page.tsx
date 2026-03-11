@@ -19,6 +19,9 @@ import {
   FolderSync,
   Link,
   Check,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -117,6 +120,8 @@ function pointsToValue(points: number, prop: PropertyDefinition, maxPoints: numb
 }
 
 type View = 'settings' | 'properties' | 'grid' | 'detail' | 'documentation' | 'import-export';
+type SortBy = 'quartettId' | 'name' | 'budget' | 'siegespunkte' | 'stichpunkte' | 'fertig';
+type SortDir = 'asc' | 'desc';
 
 /**
  * Pure (non-closure) version of the card-ready check used inside useMemo.
@@ -147,6 +152,8 @@ export default function QuartettEditor() {
   const [pendingZipParam, setPendingZipParam] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [zipParamError, setZipParamError] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>('quartettId');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const linkCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Pairwise cache for incremental Siegespunkte / Stichpunkte computation.
@@ -302,6 +309,52 @@ export default function QuartettEditor() {
 
     return metrics;
   }, [project]); // comparePair / isCardReadyPure / project.properties are pure functions of project
+
+  const sortedCards = useMemo(() => {
+    const cards = [...project.cards];
+    const dir = sortDir === 'asc' ? 1 : -1;
+
+    // Pre-compute per-card values used by comparators to avoid redundant work
+    // inside the sort callback (O(n×m) pre-computation instead of O(n²×m)).
+    const budgetMap = new Map<string, number>(
+      cards.map(card => [
+        card.id,
+        project.properties.reduce((sum, prop) => {
+          const val = card.values[prop.id] ?? prop.min;
+          return sum + valueToPoints(val, prop, project.settings.maxPoints);
+        }, 0),
+      ])
+    );
+    const readyMap = new Map<string, boolean>(
+      cards.map(card => [card.id, isCardReadyPure(card, project)])
+    );
+
+    cards.sort((a, b) => {
+      switch (sortBy) {
+        case 'quartettId':
+          return dir * a.quartettId.localeCompare(b.quartettId, undefined, { numeric: true, sensitivity: 'base' });
+        case 'name':
+          return dir * a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        case 'budget':
+          return dir * ((budgetMap.get(a.id) ?? 0) - (budgetMap.get(b.id) ?? 0));
+        case 'siegespunkte': {
+          const mA = cardMetrics.get(a.id)?.siegespunkte ?? -1;
+          const mB = cardMetrics.get(b.id)?.siegespunkte ?? -1;
+          return dir * (mA - mB);
+        }
+        case 'stichpunkte': {
+          const mA = cardMetrics.get(a.id)?.stichpunkte ?? -1;
+          const mB = cardMetrics.get(b.id)?.stichpunkte ?? -1;
+          return dir * (mA - mB);
+        }
+        case 'fertig':
+          return dir * ((readyMap.get(a.id) ? 1 : 0) - (readyMap.get(b.id) ? 1 : 0));
+        default:
+          return 0;
+      }
+    });
+    return cards;
+  }, [project, sortBy, sortDir, cardMetrics]);
 
   if (!mounted) return <div className="flex items-center justify-center h-screen">Lade...</div>;
 
@@ -921,8 +974,50 @@ export default function QuartettEditor() {
                   </div>
                 </header>
 
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#1a1a1a]/40 flex items-center gap-1">
+                    <ArrowUpDown size={12} />
+                    Sortieren:
+                  </span>
+                  {(
+                    [
+                      { key: 'quartettId', label: 'Quartett-ID' },
+                      { key: 'name', label: 'Name' },
+                      { key: 'budget', label: 'Budget' },
+                      { key: 'siegespunkte', label: 'Siegespunkte' },
+                      { key: 'stichpunkte', label: 'Stichpunkte' },
+                      { key: 'fertig', label: 'Fertig-Status' },
+                    ] as { key: SortBy; label: string }[]
+                  ).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        if (sortBy === key) {
+                          setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy(key);
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center gap-1 px-3 py-1.5 rounded-xl text-[10px] uppercase tracking-widest font-bold border transition-colors",
+                        sortBy === key
+                          ? "bg-[#1a1a1a] text-white border-[#1a1a1a]"
+                          : "bg-white text-[#1a1a1a]/60 border-[#1a1a1a]/10 hover:bg-[#1a1a1a]/5"
+                      )}
+                    >
+                      {label}
+                      {sortBy === key && (
+                        sortDir === 'asc'
+                          ? <ArrowUp size={10} />
+                          : <ArrowDown size={10} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {project.cards.map((card) => {
+                  {sortedCards.map((card) => {
                     const ready = isCardReady(card);
                     const budget = getCardBudget(card);
                     
