@@ -197,3 +197,16 @@ export async function importProjectFromBase64Zip(
   const zip = await JSZip.loadAsync(padded, { base64: true });
   return importProjectFromZipObject(zip, currentProperties);
 }
+
+export async function importProjectFromUrl(
+  path: string,
+  currentProperties: PropertyDefinition[]
+): Promise<Partial<QuartettProject>> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Die Datei „${path}" konnte nicht geladen werden: ${response.status} ${response.statusText}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  return importProjectFromZipObject(zip, currentProperties);
+}
