@@ -1,0 +1,31 @@
+id;quartettId;name;Alter;ISO-Größe;Bewertung;Ladezeit;Pakete;Versionen
+card-0;1A;Ubuntu – GNOME;2004;812;7,52;76;30771;12
+card-1;1B;Bodhi Linux – Moksha;2011;706;8,45;45;35000;3
+card-2;1C;Elementary OS;2011;1480;8,2;66;4649;1
+card-3;1D;Mint – Cinnamon;2006;1800;8,61;62;30039;4
+card-4;2A;Peppermint – LXDE;2010;1400;8,91;66;30039;1
+card-5;2B;Zorin OS – GNOME;2009;1500;7,95;66;27085;1
+card-6;2C;Debian – GNOME;1996;641;8,52;58;25312;2
+card-7;2D;Kali Linux – Mate;2004;630;8,52;48;29065;7
+card-8;3A;Raspi Desktop;2015;351;8,6;33;28555;3
+card-9;3B;Arch Linux;2002;602;9,32;51;6692;1
+card-10;3C;Manjaro – KDE;2013;1700;8,53;66;11279;15
+card-11;3D;Antergos – deepin;2013;961;8,24;61;210;2
+card-12;4A;Gentoo Linux – KDE;2002;257;9,27;53;35789;2
+card-13;4B;BunsenLabs – Openbox;2016;1100;9,1;42;26;1
+card-14;4C;GParted – Fluxbox;2006;318;8,85;30;0;1
+card-15;4D;Fedora – GNOME;2003;1800;8,36;68;24300;3
+card-16;5A;Qubes OS – Xfce;2012;4400;7,69;56;1035;1
+card-17;5B;CentOS – GNOME;2004;918;8,43;56;17565;2
+card-18;5C;Mageia – GNOME;2011;2100;8,36;54;15651;3
+card-19;5D;PCLinuxOS – KDE;2005;1000;8,9;55;11244;2
+card-20;6A;Slackware – KDE;1994;2700;9,61;66;1492;1
+card-21;6B;Slax – Fluxbox;2003;256;7,18;17;2050;1
+card-22;6C;OpenSUSE – KDE;1998;3600;8,8;68;11321;9
+card-23;6D;Android-x86;2016;900;7,67;64;2600000;1
+card-24;7A;TrueOS – Lumina;2006;2300;4,76;58;32630;1
+card-25;7B;Puppy – JWM;2006;224;9,26;30;700;3
+card-26;7C;Tiny Core – flwm;2009;11;9,48;10;3543;3
+card-27;7D;KaOS – KDE;2014;1900;7,76;66;2065;1
+card-28;8A;ReactOS;2003;105;4,6;40;99;1
+card-29;8B;FreeBSD – LXDE;1998;386;9,13;34;32630;4
