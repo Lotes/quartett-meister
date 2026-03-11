@@ -11,18 +11,12 @@ A web-based editor for creating and balancing [Quartett](https://en.wikipedia.or
    npm install
    ```
 
-2. Copy the environment template and configure it:
-   ```bash
-   cp .env.example .env.local
-   ```
-   Set `GEMINI_API_KEY` in `.env.local` if you want AI-assisted features.
-
-3. Start the development server:
+2. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 Other scripts:
 - `npm run build` – Build for production
@@ -43,7 +37,6 @@ Other scripts:
 | `lib/utils.ts` | General helper utilities (e.g., Tailwind class merging) |
 | `next.config.ts` | Next.js configuration (standalone output, webpack tuning) |
 | `metadata.json` | App metadata for AI Studio integration |
-| `.env.example` | Environment variable template |
 | `LICENSE` | MIT License |
 
 ## Application Architecture
