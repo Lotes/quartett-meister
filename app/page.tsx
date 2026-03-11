@@ -61,29 +61,28 @@ const DEFAULT_SETTINGS: DeckSettings = {
   tolerance: 0,
 };
 
+function defaultCardValue(prop: PropertyDefinition): number {
+  return prop.winCondition === 'higher' ? prop.min : prop.max;
+}
+
+const INITIAL_PROPERTIES: PropertyDefinition[] = Array.from({ length: 6 }, (_, i) => ({
+  id: `prop-${i}`,
+  name: `Eigenschaft ${i + 1}`,
+  unit: '',
+  winCondition: 'higher' as const,
+  min: 0,
+  max: 100,
+  scaleType: 'linear' as const,
+}));
+
 const INITIAL_PROJECT: QuartettProject = {
   settings: DEFAULT_SETTINGS,
-  properties: Array.from({ length: 6 }, (_, i) => ({
-    id: `prop-${i}`,
-    name: `Eigenschaft ${i + 1}`,
-    unit: '',
-    winCondition: 'higher',
-    min: 0,
-    max: 100,
-    scaleType: 'linear',
-  })),
+  properties: INITIAL_PROPERTIES,
   cards: Array.from({ length: 32 }, (_, i) => ({
     id: `card-${i}`,
     quartettId: `${Math.floor(i / 4) + 1}${String.fromCharCode(65 + (i % 4))}`,
     name: `Karte ${i + 1}`,
-    values: {
-      'prop-0': 50,
-      'prop-1': 50,
-      'prop-2': 50,
-      'prop-3': 50,
-      'prop-4': 50,
-      'prop-5': 50,
-    },
+    values: Object.fromEntries(INITIAL_PROPERTIES.map(p => [p.id, defaultCardValue(p)])),
   })),
 };
 
@@ -313,11 +312,12 @@ export default function QuartettEditor() {
       
       // If propertyCount changed, adjust properties array
       let updatedProperties = [...prev.properties];
+      let updatedCards = [...prev.cards];
       if (newSettings.propertyCount !== undefined) {
         if (newSettings.propertyCount > prev.properties.length) {
           const diff = newSettings.propertyCount - prev.properties.length;
           for (let i = 0; i < diff; i++) {
-            updatedProperties.push({
+            const newProp: PropertyDefinition = {
               id: `prop-${Date.now()}-${i}`,
               name: `Neue Eigenschaft`,
               unit: '',
@@ -325,7 +325,12 @@ export default function QuartettEditor() {
               min: 0,
               max: 100,
               scaleType: 'linear',
-            });
+            };
+            updatedProperties.push(newProp);
+            updatedCards = updatedCards.map(c => ({
+              ...c,
+              values: { ...c.values, [newProp.id]: defaultCardValue(newProp) },
+            }));
           }
         } else {
           updatedProperties = updatedProperties.slice(0, newSettings.propertyCount);
@@ -333,7 +338,6 @@ export default function QuartettEditor() {
       }
 
       // If cardCount changed, adjust cards array
-      let updatedCards = [...prev.cards];
       if (newSettings.cardCount !== undefined) {
         if (newSettings.cardCount > prev.cards.length) {
           const diff = newSettings.cardCount - prev.cards.length;
@@ -343,7 +347,7 @@ export default function QuartettEditor() {
               id: `card-${Date.now()}-${i}`,
               quartettId: `${Math.floor(idx / 4) + 1}${String.fromCharCode(65 + (idx % 4))}`,
               name: `Neue Karte`,
-              values: {},
+              values: Object.fromEntries(updatedProperties.map(p => [p.id, defaultCardValue(p)])),
             });
           }
         } else {
