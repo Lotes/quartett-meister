@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "build:samples": "node scripts/build-samples.mjs",
+    "predev": "npm run build:samples",
     "dev": "next dev",
+    "prebuild": "npm run build:samples",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

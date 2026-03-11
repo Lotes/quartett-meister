@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import NextLink from 'next/link';
 import { 
   Settings, 
   Table as TableIcon, 
@@ -46,6 +47,7 @@ import {
   exportProjectToBase64Zip,
   importProjectFromZip,
   importProjectFromBase64Zip,
+  importProjectFromUrl,
 } from '@/lib/csv-utils';
 import RadarChart from '@/components/RadarChart';
 import { clsx, type ClassValue } from 'clsx';
@@ -56,6 +58,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const STORAGE_KEY = 'quartett_editor_project';
+const LINUX_SAMPLE_PATH = 'samples/linux.zip';
 
 const DEFAULT_SETTINGS: DeckSettings = {
   cardCount: 32,
@@ -151,8 +154,10 @@ export default function QuartettEditor() {
   const [currentView, setCurrentView] = useState<View>('grid');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [pendingZipParam, setPendingZipParam] = useState<string | null>(null);
+  const [pendingPathParam, setPendingPathParam] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [zipParamError, setZipParamError] = useState(false);
+  const [pathParamError, setPathParamError] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>('quartettId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -189,6 +194,10 @@ export default function QuartettEditor() {
     const zipParam = searchParams.get('zip');
     if (zipParam) {
       setPendingZipParam(zipParam);
+    }
+    const pathParam = searchParams.get('path');
+    if (pathParam && /^[a-zA-Z0-9._/\-]+\.zip$/.test(pathParam)) {
+      setPendingPathParam(pathParam);
     }
     setTimeout(() => setMounted(true), 0);
   }, []);
@@ -651,6 +660,25 @@ export default function QuartettEditor() {
     }
   };
 
+  const removePathParam = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('path');
+    window.history.replaceState({}, '', url.toString());
+    setPendingPathParam(null);
+    setPathParamError(false);
+  };
+
+  const handleConfirmLoadPathParam = async () => {
+    if (!pendingPathParam) return;
+    try {
+      const imported = await importProjectFromUrl(pendingPathParam, project.properties);
+      applyImportedProject(imported);
+      removePathParam();
+    } catch (e) {
+      setPathParamError(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f5f5f0] text-[#1a1a1a] font-sans">
       {/* Zip-from-URL confirmation dialog */}
@@ -682,6 +710,44 @@ export default function QuartettEditor() {
               {!zipParamError && (
                 <button
                   onClick={handleConfirmLoadZipParam}
+                  className="px-5 py-2 rounded-xl bg-[#1a1a1a] text-white text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/80 transition-colors"
+                >
+                  Projekt laden
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Path-from-URL confirmation dialog */}
+      {pendingPathParam && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-amber-600">
+              <AlertCircle size={24} />
+              <h2 className="text-2xl font-serif">Projekt aus Link laden?</h2>
+            </div>
+            <p className="text-sm text-[#1a1a1a]/70">
+              Der aufgerufene Link verweist auf eine Projektdatei (<code className="text-xs bg-[#1a1a1a]/10 px-1 rounded">{pendingPathParam}</code>).
+              Wenn du sie lädst, wird das <strong>aktuelle Projekt überschrieben</strong>.
+              Stelle sicher, dass du keine ungesicherten Änderungen verlieren möchtest.
+            </p>
+            {pathParamError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex gap-2">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <span>Die Datei konnte nicht geladen werden. Bitte überprüfe den Link.</span>
+              </div>
+            )}
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                onClick={removePathParam}
+                className="px-5 py-2 rounded-xl border border-[#1a1a1a]/20 text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/5 transition-colors"
+              >
+                Abbrechen
+              </button>
+              {!pathParamError && (
+                <button
+                  onClick={handleConfirmLoadPathParam}
                   className="px-5 py-2 rounded-xl bg-[#1a1a1a] text-white text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/80 transition-colors"
                 >
                   Projekt laden
@@ -1575,6 +1641,40 @@ export default function QuartettEditor() {
                   <p>
                     <strong>Hinweis:</strong> Beim Upload wird das aktuelle Projekt vollständig ersetzt. Stelle sicher, dass du eine Sicherungskopie hast, bevor du ein neues Projekt hochlädst.
                   </p>
+                </div>
+
+                {/* Linux Sample */}
+                <div className="bg-white p-8 rounded-3xl border border-[#1a1a1a]/10 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3 text-teal-600">
+                    <FolderSync size={24} />
+                    <h2 className="text-2xl font-serif">Beispiel: Linux-Quartett</h2>
+                  </div>
+                  <p className="text-sm text-[#1a1a1a]/70">
+                    Lade das fertige Linux-Quartett als Beispielprojekt. Es enthält 30 Linux-Distributionen mit 6 Eigenschaften
+                    (Alter, ISO-Größe, Bewertung, Ladezeit, Pakete, Versionen).
+                  </p>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex gap-2">
+                    <Info size={14} className="shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Quelle:</strong> Die Daten stammen aus dem{' '}
+                      <a
+                        href="https://www.tutonaut.de/linux-quartett/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-blue-600"
+                      >
+                        Linux-Quartett von tutonaut.de
+                      </a>
+                      . Nutzung gemäß den Lizenzbedingungen der Ursprungsseite.
+                    </span>
+                  </div>
+                  <NextLink
+                    href={`/?path=${LINUX_SAMPLE_PATH}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#1a1a1a] text-white rounded-xl text-sm font-bold uppercase tracking-widest hover:bg-[#1a1a1a]/80 transition-colors"
+                  >
+                    <Download size={16} />
+                    Linux-Beispiel laden
+                  </NextLink>
                 </div>
               </motion.div>
             )}

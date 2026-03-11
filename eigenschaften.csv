@@ -1,0 +1,7 @@
+id;name;unit;winCondition;min;max;scaleType
+prop-0;Alter;;lower;1994;2016;linear
+prop-1;ISO-Größe;MB;higher;11;4400;linear
+prop-2;Bewertung;;higher;0;10;linear
+prop-3;Ladezeit;s;higher;10;76;linear
+prop-4;Pakete;Quellen;higher;0;2600000;logarithmic
+prop-5;Versionen;;higher;1;15;linear
