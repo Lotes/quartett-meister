@@ -22,6 +22,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -152,6 +153,7 @@ export default function QuartettEditor() {
   const [pendingZipParam, setPendingZipParam] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [zipParamError, setZipParamError] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>('quartettId');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const linkCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -496,9 +498,18 @@ export default function QuartettEditor() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      const csvText = event.target?.result as string;
-      const imported = importPropertiesFromCSV(csvText);
-      setProject(prev => prev ? { ...prev, properties: imported, settings: { ...prev.settings, propertyCount: imported.length } } : prev);
+      e.target.value = '';
+      try {
+        const csvText = event.target?.result as string;
+        const imported = importPropertiesFromCSV(csvText);
+        setProject(prev => prev ? { ...prev, properties: imported, settings: { ...prev.settings, propertyCount: imported.length } } : prev);
+      } catch (err) {
+        setImportError(`Eigenschaften konnten nicht importiert werden: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    reader.onerror = () => {
+      e.target.value = '';
+      setImportError('Die Eigenschaften-Datei konnte nicht gelesen werden.');
     };
     reader.readAsText(file);
   };
@@ -513,9 +524,18 @@ export default function QuartettEditor() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      const csvText = event.target?.result as string;
-      const imported = importCardsFromCSV(csvText, project.properties);
-      setProject(prev => prev ? { ...prev, cards: imported, settings: { ...prev.settings, cardCount: imported.length } } : prev);
+      e.target.value = '';
+      try {
+        const csvText = event.target?.result as string;
+        const imported = importCardsFromCSV(csvText, project.properties);
+        setProject(prev => prev ? { ...prev, cards: imported, settings: { ...prev.settings, cardCount: imported.length } } : prev);
+      } catch (err) {
+        setImportError(`Karten konnten nicht importiert werden: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    reader.onerror = () => {
+      e.target.value = '';
+      setImportError('Die Karten-Datei konnte nicht gelesen werden.');
     };
     reader.readAsText(file);
   };
@@ -530,9 +550,18 @@ export default function QuartettEditor() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      const csvText = event.target?.result as string;
-      const imported = importSettingsFromCSV(csvText);
-      setProject(prev => prev ? { ...prev, settings: { ...prev.settings, ...imported } } : prev);
+      e.target.value = '';
+      try {
+        const csvText = event.target?.result as string;
+        const imported = importSettingsFromCSV(csvText);
+        setProject(prev => prev ? { ...prev, settings: { ...prev.settings, ...imported } } : prev);
+      } catch (err) {
+        setImportError(`Parameter konnten nicht importiert werden: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    reader.onerror = () => {
+      e.target.value = '';
+      setImportError('Die Parameter-Datei konnte nicht gelesen werden.');
     };
     reader.readAsText(file);
   };
@@ -562,6 +591,8 @@ export default function QuartettEditor() {
           cards: newCards,
         };
       });
+    } catch (err) {
+      setImportError(`ZIP-Datei konnte nicht importiert werden: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       e.target.value = '';
     }
@@ -658,6 +689,20 @@ export default function QuartettEditor() {
               )}
             </div>
           </div>
+        </div>
+      )}
+      {/* Import error notification */}
+      {importError && (
+        <div className="fixed top-4 left-24 right-4 z-[150] flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4 shadow-lg text-sm text-red-700">
+          <AlertCircle size={18} className="shrink-0 mt-0.5" />
+          <span className="flex-1">{importError}</span>
+          <button
+            onClick={() => setImportError(null)}
+            className="shrink-0 text-red-400 hover:text-red-700 transition-colors"
+            aria-label="Schließen"
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
       {/* Navigation Rail */}
