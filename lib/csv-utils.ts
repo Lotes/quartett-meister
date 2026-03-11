@@ -23,6 +23,9 @@ function parseDSV(text: string) {
 
 export function importPropertiesFromCSV(csvText: string): PropertyDefinition[] {
   const parsed = parseDSV(csvText);
+  if (parsed.length === 0) {
+    throw new Error('Die CSV-Datei enthält keine Daten.');
+  }
   return parsed.map((row: any) => ({
     id: row.id || `prop-${Date.now()}-${Math.random()}`,
     name: row.name || 'Unbenannt',
@@ -51,6 +54,9 @@ export function exportCardsToCSV(cards: Card[], properties: PropertyDefinition[]
 
 export function importCardsFromCSV(csvText: string, properties: PropertyDefinition[]): Card[] {
   const parsed = parseDSV(csvText);
+  if (parsed.length === 0) {
+    throw new Error('Die CSV-Datei enthält keine Daten.');
+  }
   return parsed.map((row: any) => {
     const values: Record<string, number> = {};
     properties.forEach(p => {
@@ -163,6 +169,10 @@ async function importProjectFromZipObject(
   if (cardsFile) {
     const text = await cardsFile.async('string');
     result.cards = importCardsFromCSV(text, properties);
+  }
+
+  if (!paramFile && !propFile && !cardsFile) {
+    throw new Error('Die ZIP-Datei enthält keine erkannten Dateien. Erwartet wird mindestens eine der folgenden Dateien: parameter.csv, eigenschaften.csv, karten.csv.');
   }
 
   return result;
