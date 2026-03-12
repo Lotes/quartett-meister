@@ -1287,20 +1287,30 @@ export default function QuartettEditor() {
                     {(() => {
                       const m = cardMetrics.get(selectedCard.id);
                       if (!m) return null;
+                      const niederlagenpunkte = Math.max(0, 100 - m.siegespunkte - m.stichpunkte);
                       return (
                         <div className="bg-white p-6 rounded-3xl border border-[#1a1a1a]/10 shadow-sm">
                           <h3 className="text-xs uppercase tracking-widest font-bold text-[#1a1a1a]/40 mb-4">Vergleichsstatistik</h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-blue-50 rounded-2xl p-4 text-center">
-                              <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-1">Siegespunkte</div>
-                              <div className="text-3xl font-serif text-blue-700">{m.siegespunkte}</div>
-                              <div className="text-[10px] text-blue-400/70 mt-1">{m.totalWins}&thinsp;/&thinsp;{m.totalComparisons}</div>
-                            </div>
-                            <div className="bg-purple-50 rounded-2xl p-4 text-center">
-                              <div className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1">Stichpunkte</div>
-                              <div className="text-3xl font-serif text-purple-700">{m.stichpunkte}</div>
-                              <div className="text-[10px] text-purple-400/70 mt-1">{m.totalTies}&thinsp;/&thinsp;{m.totalComparisons}</div>
-                            </div>
+                          <div className="h-2 rounded-full overflow-hidden flex bg-[#1a1a1a]/5">
+                            <div
+                              className="h-full bg-blue-500 transition-all duration-500"
+                              style={{ width: `${m.siegespunkte}%` }}
+                            />
+                            <div
+                              className="h-full bg-purple-400 transition-all duration-500"
+                              style={{ width: `${m.stichpunkte}%` }}
+                            />
+                            <div
+                              className="h-full bg-red-400/60 transition-all duration-500"
+                              style={{ width: `${niederlagenpunkte}%` }}
+                            />
+                          </div>
+                          <div className="mt-2 text-[10px] text-[#1a1a1a]/40 text-center">
+                            <span className="text-blue-500">Siege</span>
+                            {' / '}
+                            <span className="text-purple-400">Stiche</span>
+                            {' / '}
+                            <span className="text-red-400/80">Niederlagen</span>
                           </div>
                         </div>
                       );
