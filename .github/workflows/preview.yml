@@ -1,0 +1,63 @@
+# Workflow for building and deploying PR preview deployments to GitHub Pages.
+#
+# Each open PR is deployed to:
+#   https://lotes.github.io/quartett-meister/pr-preview/pr-<number>/
+#
+# Previews are automatically removed when a PR is closed.
+#
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+# Allow writing to the gh-pages branch and commenting on PRs
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: github.event.action != 'closed'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Restore cache
+        if: github.event.action != 'closed'
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+
+      - name: Install dependencies
+        if: github.event.action != 'closed'
+        run: npm ci
+
+      - name: Build sample ZIPs
+        if: github.event.action != 'closed'
+        run: npm run build:samples
+
+      - name: Build with Next.js
+        if: github.event.action != 'closed'
+        run: npx --no-install next build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /quartett-meister/pr-preview/pr-${{ github.event.number }}
+
+      - name: Deploy / remove PR preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: out
