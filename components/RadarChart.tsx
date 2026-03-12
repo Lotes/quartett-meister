@@ -91,9 +91,31 @@ export default function RadarChart({
         .on('drag', function (event, d) {
           const i = data.indexOf(d);
           const sourceEv = event.sourceEvent;
-          const pointerEv = sourceEv.changedTouches?.[0] ?? sourceEv.touches?.[0] ?? sourceEv;
-          const [mouseX, mouseY] = d3.pointer(pointerEv, g.node());
-          
+
+          // Extract client coordinates — works for both mouse and touch.
+          // Touch objects keep clientX/clientY in changedTouches, not on the event itself.
+          let clientX: number, clientY: number;
+          if (sourceEv.changedTouches?.length) {
+            clientX = sourceEv.changedTouches[0].clientX;
+            clientY = sourceEv.changedTouches[0].clientY;
+          } else {
+            clientX = sourceEv.clientX;
+            clientY = sourceEv.clientY;
+          }
+
+          // getBoundingClientRect() is always in the same coordinate space as
+          // clientX/clientY (viewport-relative), avoiding the getScreenCTM()
+          // scroll/zoom bug present in mobile browsers such as iPad Chrome.
+          const svgNode = g.node()?.ownerSVGElement;
+          if (!svgNode) return;
+          const rect = svgNode.getBoundingClientRect();
+          // Account for any CSS scaling applied to the SVG element.
+          const scaleX = width / rect.width;
+          const scaleY = height / rect.height;
+          // Convert to SVG coordinates relative to the radar center (the g translate).
+          const mouseX = (clientX - rect.left) * scaleX - width / 2;
+          const mouseY = (clientY - rect.top) * scaleY - height / 2;
+
           // Calculate distance from radar center
           const dist = Math.sqrt(mouseX * mouseX + mouseY * mouseY);
           let newValue = (dist / radius) * maxValue;
