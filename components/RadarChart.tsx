@@ -90,7 +90,9 @@ export default function RadarChart({
       const drag = d3.drag<SVGCircleElement, { axis: string; value: number }>()
         .on('drag', function (event, d) {
           const i = data.indexOf(d);
-          const [mouseX, mouseY] = d3.pointer(event.sourceEvent, g.node());
+          const sourceEv = event.sourceEvent;
+          const pointerEv = sourceEv.changedTouches?.[0] ?? sourceEv.touches?.[0] ?? sourceEv;
+          const [mouseX, mouseY] = d3.pointer(pointerEv, g.node());
           
           // Calculate distance from radar center
           const dist = Math.sqrt(mouseX * mouseX + mouseY * mouseY);
