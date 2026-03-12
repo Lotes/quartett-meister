@@ -57,6 +57,23 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /quartett-meister/pr-preview/pr-${{ github.event.number }}
 
+      - name: Ensure .nojekyll at gh-pages root
+        # JamesIves/github-pages-deploy-action places .nojekyll inside the
+        # deployed *folder* (i.e. pr-preview/pr-N/.nojekyll), not at the
+        # gh-pages branch root.  Jekyll silently blocks every directory that
+        # starts with "_", which includes Next.js' "_next/" asset directory.
+        # Deploying a standalone .nojekyll to the branch root fixes that.
+        if: github.event.action != 'closed'
+        run: mkdir /tmp/nojekyll && touch /tmp/nojekyll/.nojekyll
+
+      - name: Deploy .nojekyll to gh-pages root
+        if: github.event.action != 'closed'
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: /tmp/nojekyll
+          clean: false
+
       - name: Deploy / remove PR preview
         uses: rossjrw/pr-preview-action@v1
         with:
