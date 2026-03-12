@@ -1190,17 +1190,21 @@ export default function QuartettEditor() {
                         {ready && (() => {
                           const m = cardMetrics.get(card.id);
                           if (!m) return null;
+                          const niederlagen = Math.max(0, 100 - m.siegespunkte - m.stichpunkte);
+                          const totalLosses = m.totalComparisons - m.totalWins - m.totalTies;
                           return (
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                              <div className="bg-blue-50 rounded-xl px-2 py-1.5 text-center">
-                                <div className="text-[9px] font-bold uppercase tracking-widest text-blue-400">Siege</div>
-                                <div className="text-sm font-serif text-blue-700">{m.siegespunkte}</div>
-                                <div className="text-[9px] text-blue-400/70">{m.totalWins}&thinsp;/&thinsp;{m.totalComparisons}</div>
+                            <div className="mt-3">
+                              <div className="h-1.5 rounded-full overflow-hidden flex bg-[#1a1a1a]/5">
+                                <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${m.siegespunkte}%` }} />
+                                <div className="h-full bg-yellow-400 transition-all duration-500" style={{ width: `${m.stichpunkte}%` }} />
+                                <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${niederlagen}%` }} />
                               </div>
-                              <div className="bg-purple-50 rounded-xl px-2 py-1.5 text-center">
-                                <div className="text-[9px] font-bold uppercase tracking-widest text-purple-400">Stiche</div>
-                                <div className="text-sm font-serif text-purple-700">{m.stichpunkte}</div>
-                                <div className="text-[9px] text-purple-400/70">{m.totalTies}&thinsp;/&thinsp;{m.totalComparisons}</div>
+                              <div className="mt-1 text-[9px] text-center">
+                                <span className="text-green-600">{m.totalWins}</span>
+                                <span className="text-[#1a1a1a]/30">&thinsp;/&thinsp;</span>
+                                <span className="text-yellow-500">{m.totalTies}</span>
+                                <span className="text-[#1a1a1a]/30">&thinsp;/&thinsp;</span>
+                                <span className="text-red-500">{totalLosses}</span>
                               </div>
                             </div>
                           );
@@ -1287,20 +1291,38 @@ export default function QuartettEditor() {
                     {(() => {
                       const m = cardMetrics.get(selectedCard.id);
                       if (!m) return null;
+                      const niederlagenpunkte = Math.max(0, 100 - m.siegespunkte - m.stichpunkte);
+                      const totalLosses = m.totalComparisons - m.totalWins - m.totalTies;
                       return (
                         <div className="bg-white p-6 rounded-3xl border border-[#1a1a1a]/10 shadow-sm">
                           <h3 className="text-xs uppercase tracking-widest font-bold text-[#1a1a1a]/40 mb-4">Vergleichsstatistik</h3>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-blue-50 rounded-2xl p-4 text-center">
-                              <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-1">Siegespunkte</div>
-                              <div className="text-3xl font-serif text-blue-700">{m.siegespunkte}</div>
-                              <div className="text-[10px] text-blue-400/70 mt-1">{m.totalWins}&thinsp;/&thinsp;{m.totalComparisons}</div>
-                            </div>
-                            <div className="bg-purple-50 rounded-2xl p-4 text-center">
-                              <div className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1">Stichpunkte</div>
-                              <div className="text-3xl font-serif text-purple-700">{m.stichpunkte}</div>
-                              <div className="text-[10px] text-purple-400/70 mt-1">{m.totalTies}&thinsp;/&thinsp;{m.totalComparisons}</div>
-                            </div>
+                          <div className="h-2 rounded-full overflow-hidden flex bg-[#1a1a1a]/5">
+                            <div
+                              className="h-full bg-green-500 transition-all duration-500"
+                              style={{ width: `${m.siegespunkte}%` }}
+                            />
+                            <div
+                              className="h-full bg-yellow-400 transition-all duration-500"
+                              style={{ width: `${m.stichpunkte}%` }}
+                            />
+                            <div
+                              className="h-full bg-red-500 transition-all duration-500"
+                              style={{ width: `${niederlagenpunkte}%` }}
+                            />
+                          </div>
+                          <div className="mt-2 text-[10px] text-center">
+                            <span className="text-green-600">Siege</span>
+                            {' / '}
+                            <span className="text-yellow-500">Stiche</span>
+                            {' / '}
+                            <span className="text-red-500">Niederlagen</span>
+                          </div>
+                          <div className="mt-1 text-[10px] text-center">
+                            <span className="text-green-600">{m.totalWins}</span>
+                            <span className="text-[#1a1a1a]/30">&thinsp;/&thinsp;</span>
+                            <span className="text-yellow-500">{m.totalTies}</span>
+                            <span className="text-[#1a1a1a]/30">&thinsp;/&thinsp;</span>
+                            <span className="text-red-500">{totalLosses}</span>
                           </div>
                         </div>
                       );
