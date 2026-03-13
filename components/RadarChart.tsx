@@ -87,6 +87,13 @@ export default function RadarChart({
 
     // Interactive points
     if (interactive && onValueChange) {
+      // Mutable drag-time values — updated in the DOM during drag without
+      // triggering React re-renders (which would destroy the active drag).
+      // onValueChange is called only on dragend to commit the final value.
+      const dragCurrentValues = data.map((d) => d.value);
+      // Reusable data array for path updates — avoids per-event allocations.
+      const dragData = data.map((d) => ({ ...d }));
+
       const drag = d3.drag<SVGCircleElement, { axis: string; value: number }>()
         .on('drag', function (event, d) {
           const i = data.indexOf(d);
@@ -116,12 +123,31 @@ export default function RadarChart({
           const mouseX = (clientX - rect.left) * scaleX - width / 2;
           const mouseY = (clientY - rect.top) * scaleY - height / 2;
 
-          // Calculate distance from radar center
-          const dist = Math.sqrt(mouseX * mouseX + mouseY * mouseY);
-          let newValue = (dist / radius) * maxValue;
-          newValue = Math.max(0, Math.min(maxValue, Math.round(newValue)));
-          
-          onValueChange(i, newValue);
+          // Project the cursor onto this point's axis so it moves naturally along
+          // the axis line (dot-product projection, clamped to [0, radius]).
+          const angle = angleSlice * i - Math.PI / 2;
+          const axisX = Math.cos(angle);
+          const axisY = Math.sin(angle);
+          const projDist = Math.max(0, Math.min(radius, mouseX * axisX + mouseY * axisY));
+
+          const newValue = Math.max(0, Math.min(maxValue, Math.round((projDist / radius) * maxValue)));
+          dragCurrentValues[i] = newValue;
+          dragData[i].value = newValue;
+
+          // Update this point's position directly in the DOM — no React re-render.
+          d3.select<SVGCircleElement, unknown>(this)
+            .attr('cx', projDist * axisX)
+            .attr('cy', projDist * axisY);
+
+          // Redraw the filled polygon to match the live drag position.
+          g.select<SVGPathElement>('path')
+            .attr('d', radarLine(dragData) ?? '');
+        })
+        .on('end', function (event, d) {
+          const i = data.indexOf(d);
+          // Commit to React state only once at drag end — avoids mid-drag re-renders
+          // that would destroy the drag gesture.
+          onValueChange(i, dragCurrentValues[i]);
         });
 
       g.selectAll('.point')
